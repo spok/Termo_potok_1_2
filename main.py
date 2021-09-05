@@ -3,7 +3,7 @@ import sys
 import matplotlib.pyplot as plt
 import main_window
 from data_calc import MyData
-from PyQt5.QtWidgets import QApplication, QWidget, QTableWidget, QTableWidgetItem, QTextEdit, QAction, QFileDialog, QDialog, QInputDialog
+from PyQt5.QtWidgets import QTableWidgetItem, QFileDialog, QInputDialog, QMessageBox
 from PyQt5 import QtGui, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
@@ -13,8 +13,10 @@ from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
 from loguru import logger
 
+
 class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWindow):
     """Основной класс программы"""
+
     def __init__(self):
         # Инициализация родителей
         super().__init__()
@@ -30,7 +32,9 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.table_calc.setColumnCount(6)
         self.table_calc.setRowCount(4)
         self.table_calc.setVerticalHeaderLabels(['q', 'Твн.пов', 'Твн', 'Тнар'])
-        self.table_calc.setHorizontalHeaderLabels(['Номер\nканала', 'Среднее\nзначение', 'Сдвиг на\nединицы', 'Сдвиг на\n десятые', 'Масштаб', 'Итоговое'])
+        self.table_calc.setHorizontalHeaderLabels(['Номер\nканала', 'Среднее\nзначение',
+                                                   'Сдвиг на\nединицы', 'Сдвиг на\n десятые',
+                                                   'Масштаб', 'Итоговое'])
         w = 65
         self.table_calc.setColumnWidth(0, w)
         self.table_calc.setColumnWidth(1, w)
@@ -76,7 +80,8 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.table_r.setColumnCount(3)
         self.table_r.setRowCount(3)
         self.table_r.setVerticalHeaderLabels(['Конструкция №1', 'Конструкция №2', 'Конструкция №3'])
-        self.table_r.setHorizontalHeaderLabels(['Сопротивление\nтеплопередаче R1', 'Сопротивление\nтеплопередаче R2', 'Погрешность\nизмерений'])
+        self.table_r.setHorizontalHeaderLabels(
+            ['Сопротивление\nтеплопередаче R1', 'Сопротивление\nтеплопередаче R2', 'Погрешность\nизмерений'])
         w = 120
         self.table_r.setColumnWidth(0, w)
         self.table_r.setColumnWidth(1, w)
@@ -91,7 +96,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.table.resizeColumnsToContents()
         self.table2.resizeColumnsToContents()
 
-        #создание канвы для графика
+        # создание канвы для графика
         self.graphWidget = pg.PlotWidget()
         self.verticalLayout_5.addWidget(self.graphWidget)
         self.graphWidget.clear()
@@ -109,10 +114,10 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
 
         # добавление элементов в выпадающий список
         for i in range(3):
-            self.comboBox.addItem('Конструкция № ' + str(i+1))
+            self.comboBox.addItem('Конструкция № ' + str(i + 1))
         self.comboBox.setCurrentIndex(0)
 
-        #создание ползунков для выбора диапазона графика и задание стиля оформления
+        # создание ползунков для выбора диапазона графика и задание стиля оформления
         self.slider_left.setStyleSheet("""
             QSlider{
                 background: #E3DEE2;
@@ -160,7 +165,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         """)
         self.slider_right.setEnabled(False)
         self.error_dialog = QtWidgets.QErrorMessage()
-        #настройка обработчиков событий
+        # настройка обработчиков событий
         self.table.blockSignals(True)
         self.button1.clicked.connect(self.showdialog)
         self.button2.clicked.connect(self.showdialog2)
@@ -174,6 +179,11 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.comboBox.currentIndexChanged.connect(self.show_constr)
         # смена наименования конструкции
         self.lineEdit.textEdited.connect(self.change_name)
+        # сохранение графика в файл
+        # self.button6.clicked.connect(self.export_file)
+        # сохранение и открытие файлов в формате программы
+        self.button4.clicked.connect(self.save_base)
+        self.button5.clicked.connect(self.load_base)
 
         """
         
@@ -215,10 +225,9 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.word_file = os.path.splitext(fname)[0]
         if fname != '':
             constr.load_excel(fname)
-            #перерисовка всего окна
+            # перерисовка всего окна
             self.redraw_window()
             self.change_resulf()
-
 
     def showdialog2(self):
         """отображение диалога открытия файла и загрузка данных из исходного файла потоков"""
@@ -232,10 +241,9 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             if ok:
                 series = int(text)
             constr.load_potokfile(fname, series)
-            #перерисовка всего окна
+            # перерисовка всего окна
             self.redraw_window()
             self.change_resulf()
-
 
     def redraw_window(self):
         """Перерисовка всех элементов формы с новыми данными"""
@@ -245,13 +253,13 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.show_label()
         self.show_data()
         self.show_data2()
+        self.spinBox.setValue(constr.time_step)
         self.table.setCurrentCell(0, 0)
         self.show_graph()
         # Добавление наименований каналов в выпадающий список
         for i in range(4):
             elem = self.table_calc.cellWidget(i, 0)
             elem.addItems(constr.data_label)
-
 
     def set_minmax_labels(self):
         """Настройка диапазона слайдеров"""
@@ -268,13 +276,12 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.slider_left.blockSignals(False)
         self.slider_right.blockSignals(False)
 
-
     def show_label(self):
         """Изменение настроек слайдеров"""
-        #блокировка обработки сигналов слайдеров
+        # блокировка обработки сигналов слайдеров
         self.slider_left.blockSignals(True)
         self.slider_right.blockSignals(True)
-        #настройка левого слайдера
+        # настройка левого слайдера
         border = constr.get_border('left') + 1
         self.label_left.setText('Начало измерений - ' + str(border))
         self.slider_left.setValue(border)
@@ -286,10 +293,9 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.slider_left.blockSignals(False)
         self.slider_right.blockSignals(False)
 
-
     def show_label_left(self, value):
         """Установка левой границы диапазона измерений"""
-        time_str = constr.date_time[value-1].strftime('%d.%m.%y %H:%M')
+        time_str = constr.date_time[value - 1].strftime('%d.%m.%y %H:%M')
         self.label_left.setText(f'Начало измерений - {str(value)} ({time_str})')
         constr.left_border = value - 1
         if constr.left_border > self.table.currentRow():
@@ -297,7 +303,6 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.update_graph()
         self.show_data2()
         self.change_resulf()
-
 
     def show_label_right(self, value):
         """Установка правой границы диапазона измерений"""
@@ -310,7 +315,6 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.update_graph()
         self.show_data2()
         self.change_resulf()
-
 
     def paint_cell(self, cur_col, cur_row, cur_data):
         """изменение фона ячейки в зависимости от отклонения значения ячейки от среднего"""
@@ -328,8 +332,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         if s > 90.0:
             self.table.item(cur_row, cur_col + 1).setBackground(QtGui.QColor(0, 81, 116))
 
-
-    def show_canal(self, canal:int):
+    def show_canal(self, canal: int):
         """Отображение в таблице столбца одного канала"""
         self.table.blockSignals(True)
         d = constr.get_canal_data()
@@ -339,22 +342,21 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             cur_row += 1
         self.table.blockSignals(False)
 
-
     def show_data(self):
         """Вывод показаний датчиков в основную таблицу окна"""
-        #блокировка реагирования на изменение содержания таблицы
+        # блокировка реагирования на изменение содержания таблицы
         self.table.blockSignals(True)
-        #очистка содержания таблицы
+        # очистка содержания таблицы
         self.table.clear()
-        #изменение количества строк в таблице
+        # изменение количества строк в таблице
         self.table.setRowCount(constr.get_count_element())
         # оформление шапки таблиц
         canal_type = constr.get_list_canal()
         self.table.setHorizontalHeaderLabels(["Дата"] + canal_type)
         self.table2.setHorizontalHeaderLabels(canal_type)
-        #отображение времени измерений
+        # отображение времени измерений
         self.show_time()
-        #добавление показаний датчиков
+        # добавление показаний датчиков
         for j in range(0, 10):
             self.show_canal(j)
         # отображение таблицы и графика
@@ -362,11 +364,10 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.table2.resizeColumnsToContents()
         self.table.blockSignals(False)
 
-
     def show_data2(self):
         """Заполнение таблицы для статистических данных"""
         for j in range(0, 10):
-            #вывод данных в таблицу
+            # вывод данных в таблицу
             m = constr.get_mid_canal(j, 'mid')
             self.table2.setItem(0, j, QTableWidgetItem(f'{m:.2f}'))
             m = constr.get_mid_canal(j, 'min')
@@ -374,23 +375,20 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             m = constr.get_mid_canal(j, 'max')
             self.table2.setItem(2, j, QTableWidgetItem(str(m)))
 
-
     def show_time(self):
         """отображение в таблице даты и времени измерений"""
-        #добавление времени измерений
+        # добавление времени измерений
         self.table.blockSignals(True)
         for i, cur_time in enumerate(constr.date_time):
-            #добавление даты с преобразованием формата
+            # добавление даты с преобразованием формата
             time_str = cur_time.strftime('%d.%m.%y %H:%M')
             self.table.setItem(i, 0, QTableWidgetItem(time_str))
         self.table.blockSignals(False)
-
 
     def change_time(self, value):
         """Изменение времени измерений на заданный шаг"""
         constr.set_date_time(value)
         self.show_time()
-
 
     def show_graph(self):
         """Отрисовка графика"""
@@ -414,13 +412,13 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             self.graphWidget.setYRange(constr.min_value, constr.max_value, padding=0)
 
             x_cut = list(range(constr.left_border, constr.right_border))
-            #определение активной ячейки
+            # определение активной ячейки
             cur_col = self.table.currentColumn()
             cur_row = self.table.currentRow()
-            #список с координатами точек активных ячеек
+            # список с координатами точек активных ячеек
             x_dot = []
             y_dot = []
-            #если активная ячейка в столбце дат
+            # если активная ячейка в столбце дат
             if cur_col < 1:
                 for j in range(0, 10):
                     sensor_list = constr.data[j]
@@ -430,18 +428,19 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
                     plotname = constr.data_label[j]
                     self.graph_line.append(self.graphWidget.plot(x_cut, y, name=plotname, pen=pen[j]))
                 if y_dot:
-                    self.graph_dot.append(self.graphWidget.plot(x_dot, y_dot, pen=None, symbol='o', symbolSize=7, symbolBrush=('r')))
-            #если активная ячейка в столбце показаний датчика
+                    self.graph_dot.append(
+                        self.graphWidget.plot(x_dot, y_dot, pen=None, symbol='o', symbolSize=7, symbolBrush=('r')))
+            # если активная ячейка в столбце показаний датчика
             else:
-                sensor_list = constr.data[cur_col-1]
+                sensor_list = constr.data[cur_col - 1]
                 x_dot.append(cur_row)
                 y_dot.append(sensor_list[cur_row])
-                y = constr.data[cur_col-1, constr.left_border:constr.right_border]
-                plotname = constr.data_label[cur_col-1]
-                self.graph_line.append(self.graphWidget.plot(x_cut, y, name=plotname, pen=pen[cur_col-1]))
+                y = constr.data[cur_col - 1, constr.left_border:constr.right_border]
+                plotname = constr.data_label[cur_col - 1]
+                self.graph_line.append(self.graphWidget.plot(x_cut, y, name=plotname, pen=pen[cur_col - 1]))
                 if y_dot:
-                    self.graph_dot.append(self.graphWidget.plot(x_dot, y_dot, pen=None, symbol='o', symbolSize=7,symbolBrush=('r')))
-
+                    self.graph_dot.append(
+                        self.graphWidget.plot(x_dot, y_dot, pen=None, symbol='o', symbolSize=7, symbolBrush=('r')))
 
     def show_graph2(self, graph, rez: list, legend: list):
         """Отрисовка графика результатов обработки"""
@@ -467,11 +466,10 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             else:
                 graph.setYRange(0, 10, padding=0)
             x_cut = list(range(len(rez[0])))
-            #если активная ячейка в столбце дат
+            # если активная ячейка в столбце дат
             for j in range(len(rez)):
                 y = rez[j]
                 graph.plot(x_cut, y, name=legend[j], pen=pen[j])
-
 
     def update_graph(self):
         """Отрисовка графика"""
@@ -485,9 +483,8 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
                     self.graph_line[j].setData(x_cut, y)
             else:
                 if len(self.graph_line) > 0:
-                    y = constr.data[cur_col-1, constr.left_border:constr.right_border]
+                    y = constr.data[cur_col - 1, constr.left_border:constr.right_border]
                     self.graph_line[0].setData(x_cut, y)
-
 
     def cell_edit(self, row: int, col: int):
         """Функция сохранения введенного значения в ячейку в массиве данных"""
@@ -495,13 +492,12 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         if row >= 0 and col > 0:
             cell_text = self.table.item(row, col).text()
             cell_value = float(cell_text)
-            constr.edit_cell_data(col-1, row, cell_value)
-            self.paint_cell(col-1, row, cell_value)
+            constr.edit_cell_data(col - 1, row, cell_value)
+            self.paint_cell(col - 1, row, cell_value)
             self.table.setCurrentCell(row, col)
             self.update_graph()
             self.show_data2()
         self.table.blockSignals(False)
-
 
     def show_constr(self, index: int):
         """Отображение параметров конструкций в графических элементах вкладки"""
@@ -570,12 +566,10 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
                              constr.canals[index].ro,
                              ['Ro1', 'Ro2'])
 
-
     def change_name(self):
         """Обработка изменение названия конструкции, canal - номер конструкции"""
         index = self.comboBox.currentIndex()
         constr.canals[index].name = self.lineEdit.text()
-
 
     def change_combobox(self):
         """Обработка изменение номера канала"""
@@ -587,7 +581,6 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             self.table_calc.setItem(row, 1, QTableWidgetItem('{0:.3f}'.format(constr.data_mid[elem.currentIndex()])))
         self.change_resulf()
 
-
     def change_step1(self):
         """Обработка изменение шага одного из каналов на единицы"""
         index = self.comboBox.currentIndex()
@@ -596,7 +589,6 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         if isinstance(elem, QtWidgets.QSpinBox):
             constr.canals[index].canal_koef[row][0] = elem.value()
         self.change_resulf()
-
 
     def change_step2(self):
         """Обработка изменение шага одного из каналов на десятые"""
@@ -607,7 +599,6 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             constr.canals[index].canal_koef[row][1] = elem.value()
         self.change_resulf()
 
-
     def change_koef(self):
         """Обработка изменение масштабного коэффициента"""
         index = self.comboBox.currentIndex()
@@ -616,9 +607,8 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         if isinstance(elem, QtWidgets.QSpinBox):
             constr.canals[index].canal_koef[row][2] = elem.value()
         self.change_resulf()
-        #logger.debug('результат ' +
+        # logger.debug('результат ' +
         # str(constr.canals[index].canal[constr.canals[index].canal_number[row]]))
-
 
     def change_resulf(self):
         """Пересчет изменений значений измерений при изменении значений коэффициентов"""
@@ -626,6 +616,25 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         # вывод пересчитанных средних значений каналов
         index = self.comboBox.currentIndex()
         self.show_constr(index)
+
+    def save_base(self):
+        fname = QFileDialog.getSaveFileName(self, 'Save .json file', '', '*.json')[0]
+        result = constr.save_base(fname)
+        if result == 'OK':
+            QMessageBox.about(self, 'Сохранение файла', 'Файл записан')
+        else:
+            QMessageBox.about(self, 'Сохранение файла', 'Не удалось записать файл')
+
+    def load_base(self):
+        fname = QFileDialog.getOpenFileName(self, 'Load .json file', '', '*.json')[0]
+        result = constr.load_base(fname)
+        if result == 'OK':
+            # перерисовка всего окна
+            self.change_time(constr.time_step)
+            self.redraw_window()
+            self.change_resulf()
+        else:
+            QMessageBox.about(self, 'Загрузка файла', 'Не удалось считать файл')
 
 
 class Canvas(FigureCanvas):
@@ -643,4 +652,3 @@ if __name__ == '__main__':
     constr = MyData()
     window.show()
     sys.exit(app.exec_())
-

@@ -1,16 +1,18 @@
 import numpy as np
 from openpyxl import load_workbook
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from canal import MyCanal
 import math
+import json
 
-class MyData():
+
+class MyData:
     def __init__(self):
         # Исходные данные из таблицы в виде списка
-        self.data = np.array([])            # измерения по всем каналам
-        self.data_dev = np.array([])        # отклонения от среднего значения
-        self.date_time = []                 # дата и время измерений
+        self.data = np.array([])  # измерения по всем каналам
+        self.data_dev = np.array([])  # отклонения от среднего значения
+        self.date_time = []  # дата и время измерений
+        self.date_time_move = []
         self.date_time_new = []
         # наименование каналов
         self.data_label = []
@@ -27,12 +29,11 @@ class MyData():
         self.right_border = 0
         #
         self.word_file = ''
-        self.time_step = 0      # значение текущего смещения по времени
+        self.time_step = 0  # значение текущего смещения по времени
 
         # распределение каналов
         self.canals = [MyCanal(i) for i in range(0, 3)]
         self.current_canals = 0
-
 
     def load_excel(self, fname: str) -> None:
         """Загрузка данных из файла Excel, fname - полный путь к файлу"""
@@ -73,7 +74,6 @@ class MyData():
 
         self.calc_midle()
 
-
     def load_potokfile(self, fname: str, series: int) -> None:
         """Загрузка исходного файла потока, fname - полный путь к файлу"""
         f = open(fname)
@@ -110,7 +110,7 @@ class MyData():
                 right = left + 4
                 parse_text.append(int(line[left:right].lstrip()))
             left = right
-            #добавление записи по всем датчикам за один момент времени
+            # добавление записи по всем датчикам за один момент времени
             parse.append(parse_text)
 
         # количество измерений
@@ -129,7 +129,7 @@ class MyData():
 
         # чтение массива с датами измерений
         self.date_time = []
-        find_series = []    # список списка с началом и концом каждой серии
+        find_series = []  # список списка с началом и концом каждой серии
         cur_series = 0.0
         f = []
         for i, line in enumerate(parse):
@@ -181,7 +181,6 @@ class MyData():
 
         self.calc_midle()
 
-
     def get_border(self, name: str) -> int:
         """Возвращает значения границ рабочего диапазона, name - сторона диапазона left, right"""
         l = len(self.date_time)
@@ -194,36 +193,30 @@ class MyData():
                 self.right_border = l
             return self.right_border
 
-
     def get_count_element(self):
         """Возвращает общее количество элементов в списке с данными"""
         return len(self.date_time)
-
 
     def get_list_canal(self):
         """Возвращает список с типами каналов измерений"""
         return self.data_label
 
-
-    def set_date_time(self, step: int=0) -> list:
+    def set_date_time(self, step: int = 0):
         """Возвращение списка с датами измерений со смещением на целое число дней,
         step - смещение в днях, целое"""
         # определяем смещение времени от предыдущего значения
-        a = timedelta(days=(step-self.time_step))
+        a = timedelta(days=(step - self.time_step))
         for i in range(0, len(self.date_time)):
             self.date_time[i] += a
         self.time_step = step
 
-
-    def get_canal_data(self) -> list:
+    def get_canal_data(self):
         """Возвращает список с данными каналов измерений"""
         return self.data
-
 
     def get_midle_canal(self, canal: int) -> float:
         """Возвращает среднее значение канала"""
         return self.data_mid[canal]
-
 
     def get_mid_canal(self, col: int, typ: str) -> float:
         """Возврат значения среднего или экстремумов"""
@@ -233,7 +226,6 @@ class MyData():
             return self.data_min[col]
         else:
             return self.data_max[col]
-
 
     def calc_midle(self) -> None:
         """Расчет средних значений и экстремумов данных"""
@@ -258,19 +250,16 @@ class MyData():
                 else:
                     self.data_dev[i, j] = abs((1.0 - self.data_dev[i, j] / self.data_mid[i]) * 100)
 
-
     def get_border_y(self, rez: list) -> list:
         """Определение экстремумов массива измерений"""
         min = np.amin(rez)
         max = np.amax(rez)
         return [min, max]
 
-
     def edit_cell_data(self, col: int, row: int, val: float):
         """Изменение значения измерений c пересчетом"""
         self.data[col, row] = val
         self.calc_midle()
-
 
     def copy_data(self):
         """копирование данных измерений для каждой конструкции"""
@@ -281,7 +270,6 @@ class MyData():
                 num = con.canal_number[j]
                 con.canal[j] = self.data[num, self.left_border:self.right_border].copy()
 
-
     def calc_pogr(self, con):
         """Расчет погрешности измерений"""
         delta_t = con.canal[2] - con.canal[3]
@@ -291,8 +279,7 @@ class MyData():
         q_sr = np.mean(con.canal[0])
         delta_q = abs(con.canal[0] - q_sr)
         delta_q_sr = np.mean(delta_q)
-        con.dr = con.ro1*math.sqrt(delta_q_sr**2/q_sr**2 + sr_delta_t**2/t_sr**2)
-
+        con.dr = con.ro1 * math.sqrt(delta_q_sr ** 2 / q_sr ** 2 + sr_delta_t ** 2 / t_sr ** 2)
 
     def calc_r(self):
         """Расчет сопротивлений теплопередаче для всех конструкций с учетом всех коэффициентов"""
@@ -315,12 +302,194 @@ class MyData():
                 ro1 = 0
                 ro2 = 0
             else:
-                ro1 = abs((con.canal_value[2] - con.canal_value[3])/con.canal_value[0])
+                ro1 = abs((con.canal_value[2] - con.canal_value[3]) / con.canal_value[0])
                 ro2 = abs((con.canal_value[1] - con.canal_value[3]) / con.canal_value[0] + 1 / 8.7)
             con.ro1 = ro1
             con.ro2 = ro2
             # Расчет массива сопротивлений теплопередаче
             con.ro[0] = abs((con.canal[2] - con.canal[3]) / con.canal[0])
-            con.ro[1] = abs((con.canal[1] - con.canal[3]) / con.canal[0] + 1/8.7)
+            con.ro[1] = abs((con.canal[1] - con.canal[3]) / con.canal[0] + 1 / 8.7)
             self.calc_pogr(con)
         self.calc_midle()
+
+    def save_base(self, fname: str) -> str:
+        """Сохраненение обработанных данных"""
+        if fname != '':
+            save_data = {}
+            save_data['sourse_label'] = self.data_label
+            buf = [datetime.strftime(i, '%Y.%m.%d %H:%M:%S') for i in self.date_time]
+            save_data['sourse_time'] = buf
+            # сохранение исходных данных с измерениями
+            save_data['sourse_data'] = self.data.tolist()
+            # Сохранение настроек каналов и конструкций
+            konstr_list = []
+            for i, con in enumerate(self.canals):
+                temp_constr = {}
+                temp_constr['name'] = con.name
+                temp_constr['canal_number'] = con.canal_number
+                temp_constr['canal_koef'] = con.canal_koef
+                konstr_list.append(temp_constr)
+            save_data['property'] = konstr_list
+            save_data['left_border'] = self.left_border
+            save_data['right_border'] = self.right_border
+            save_data['data_step'] = self.time_step
+            try:
+                with open(fname, 'w') as save_file:
+                    json.dump(save_data, save_file)
+                return 'OK'
+            except:
+                return 'Не удалось записать файл'
+
+    def load_base(self, fname: str) -> str:
+        """Загрузка сохраненных обработанных данных"""
+        if fname != '':
+            try:
+                with open(fname, 'r') as load_file:
+                    load_data = json.load(load_file)
+                self.data_label = load_data['sourse_label']
+                # Загрузка времени измерений
+                buf = load_data['sourse_time']
+                for i in buf:
+                    self.date_time.append(datetime.strptime(i, '%Y.%m.%d %H:%M:%S'))
+                # Загрузка исходных данных с измерениями
+                self.data = np.array(load_data['sourse_data'])
+                # Сохранение настроек каналов и конструкций
+                konstr_list = load_data['property']
+                for i, con in enumerate(konstr_list):
+                    self.canals[i].name = con['name']
+                    self.canals[i].canal_number = con['canal_number']
+                    self.canals[i].canal_koef = con['canal_koef']
+
+                self.left_border = load_data['left_border']
+                self.right_border = load_data['right_border']
+                self.time_step = load_data['data_step']
+                self.calc_midle()
+                return 'OK'
+            except:
+                return 'Не удалось открыть файл'
+
+    def export_file(self):
+        pass
+        # """Экспорт графиков в формате word"""
+        # doc = docx.Document()
+        # num_ris = 1
+        # for i in range(0, 3):
+        #     name1 = self.plot_file1(i)
+        #     paragraph = doc.add_picture(name1, width=docx.shared.Cm(13))
+        #     last_paragraph = doc.paragraphs[-1]
+        #     last_paragraph.alignment = 1
+        #     paragraph.alignment = 1
+        #     if self.canal_data[i]['name'] == '':
+        #         buf_text = 'Рис. ' + str(num_ris) + '. Результаты измерений ограждающей конструкции №' + str(i+1)
+        #     else:
+        #         buf_text = 'Рис. ' + str(num_ris) + '. Результаты измерений ограждающей конструкции №' + str(i+1) + ' (' + self.canal_data[i]['name'] + ')'
+        #     paragraph = doc.add_paragraph(buf_text)
+        #     paragraph.alignment = 1
+        #     num_ris += 1
+        #     name2 = self.plot_file2(i)
+        #     paragraph = doc.add_picture(name2, width=docx.shared.Cm(13))
+        #     last_paragraph = doc.paragraphs[-1]
+        #     last_paragraph.alignment = 1
+        #     paragraph.alignment = 1
+        #     if self.canal_data[i]['name'] == '':
+        #         buf_text = 'Рис. ' + str(num_ris) + '. Измеренное сопротивление теплопередаче конструкции №' + str(i+1)
+        #     else:
+        #         buf_text = 'Рис. ' + str(num_ris) + '. Измеренное сопротивление теплопередаче конструкции №' + str(i+1) + ' (' + self.canal_data[i]['name'] + ')'
+        #     paragraph = doc.add_paragraph(buf_text)
+        #     paragraph.alignment = 1
+        #     num_ris += 1
+        #
+        # paragraph = doc.add_paragraph('')
+        # paragraph = doc.add_paragraph('Таблица 1. Измеренные параметры ОКЗ')
+        # paragraph.alignment = 1
+        # table_rows = 4
+        # table_cols = 5
+        # table = doc.add_table(rows=table_rows, cols=table_cols)
+        # table.style = 'Table Grid'
+        # table.alignment = 1
+        # cell = table.cell(0, 0)
+        # cell.text = 'Наименование и расположение исследуемых конструкций'
+        # cell.paragraphs[0].alignment = 1
+        # cell = table.cell(0, 1)
+        # cell.text = 'Средняя температура внутреннего воздуха, °С'
+        # cell.paragraphs[0].alignment = 1
+        # cell = table.cell(0, 2)
+        # cell.text = 'Средняя температура наружного воздуха, °С'
+        # cell.paragraphs[0].alignment = 1
+        # cell = table.cell(0, 3)
+        # cell.text = 'Средняя температура внутренней поверхности, °С'
+        # cell.paragraphs[0].alignment = 1
+        # cell = table.cell(0, 4)
+        # cell.text = 'Средний тепловой поток, Вт/м2'
+        # cell.paragraphs[0].alignment = 1
+        # table_rows = 3
+        # for row in range(table_rows):
+        #     for col in range(table_cols):
+        #         # получаем ячейку таблицы
+        #         cell = table.cell(row+1, col)
+        #         # записываем в ячейку данные
+        #         if col == 0:
+        #             if self.canal_data[row]['name'] == '':
+        #                 buf_text = 'Конструкция №' + str(row + 1)
+        #             else:
+        #                 buf_text = 'Конструкция №' + str(row + 1) + ' (' + self.canal_data[row]['name'] + ')'
+        #             cell.text = buf_text
+        #         if col == 1:
+        #             buf = '{0:.3f}'.format(self.canal_data[row]['new_tvn'])
+        #             cell.text = buf
+        #         if col == 2:
+        #             buf = '{0:.3f}'.format(self.canal_data[row]['new_tn'])
+        #             cell.text = buf
+        #         if col == 3:
+        #             buf = '{0:.3f}'.format(self.canal_data[row]['new_tpov'])
+        #             cell.text = buf
+        #         if col == 4:
+        #             buf = '{0:.3f}'.format(self.canal_data[row]['new_q'])
+        #             cell.text = buf
+        #         cell.paragraphs[0].alignment = 1
+        #
+        # # Вставка таблицы с сопротивлением теплопередаче
+        # paragraph = doc.add_paragraph('')
+        # paragraph = doc.add_paragraph('Таблица 2. Усредненные величины сопротивлений теплопередаче ОКЗ, м2·°С/Вт')
+        # paragraph.alignment = 1
+        # table_rows = 4
+        # table_cols = 4
+        # table = doc.add_table(rows=table_rows, cols=table_cols)
+        # table.style = 'Table Grid'
+        # table.alignment = 1
+        # cell = table.cell(0, 0)
+        # cell.text = 'Наименование и расположение исследуемых конструкций'
+        # cell.paragraphs[0].alignment = 1
+        # cell = table.cell(0, 1)
+        # cell.text = 'Нормативное значение'
+        # cell.paragraphs[0].alignment = 1
+        # cell = table.cell(0, 2)
+        # cell.text = 'Проектное значение'
+        # cell.paragraphs[0].alignment = 1
+        # cell = table.cell(0, 3)
+        # cell.text = 'Измеренное значение'
+        # cell.paragraphs[0].alignment = 1
+        # table_rows = 3
+        # for row in range(table_rows):
+        #     for col in range(table_cols):
+        #         # получаем ячейку таблицы
+        #         cell = table.cell(row+1, col)
+        #         # записываем в ячейку данные
+        #         if col == 0:
+        #             if self.canal_data[row]['name'] == '':
+        #                 buf_text = 'Конструкция №' + str(row + 1)
+        #             else:
+        #                 buf_text = 'Конструкция №' + str(row + 1) + ' (' + self.canal_data[row]['name'] + ')'
+        #             cell.text = buf_text
+        #
+        #         if col == 3:
+        #             buf = '{0:.3f}'.format(self.canal_data[row]['ro1'])
+        #             buf = buf + '±' + '{0:.3f}'.format(self.canal_data[row]['dr'])
+        #             cell.text = buf
+        #         cell.paragraphs[0].alignment = 1
+        #
+        # if self.word_file != '':
+        #     doc.save(self.word_file + ' - обработанный.docx')
+        # else:
+        #     self.word_file = 'export_data.docx'
+        #     doc.save(self.word_file)

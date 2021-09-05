@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class MyCanal():
+class MyCanal:
     def __init__(self, num: int = 0):
         # предварительная настройка типа номеров каналов
         self.canal_name = ['q', 'Твн.пов', 'Твн', 'Тнар']
@@ -22,5 +22,3 @@ class MyCanal():
         self.canal_koef = []
         for i in range(0, 4):
             self.canal_koef.append([0, 0.0, 1])
-
-
