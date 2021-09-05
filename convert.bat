@@ -1,0 +1,1 @@
+pyuic5 f:\Nextcloud\Python\Termo_potok_1_2\main_window.ui -o f:\Nextcloud\Python\Termo_potok_1_2\main_window.py
