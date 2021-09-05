@@ -9,10 +9,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.dates as mdates
 from pyqtgraph.Qt import QtGui
-from pyqtgraph import PlotWidget, plot
 import pyqtgraph as pg
-from loguru import logger
-
+import docx
+import numpy as np
 
 class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWindow):
     """Основной класс программы"""
@@ -180,49 +179,17 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         # смена наименования конструкции
         self.lineEdit.textEdited.connect(self.change_name)
         # сохранение графика в файл
-        # self.button6.clicked.connect(self.export_file)
+        self.button6.clicked.connect(self.export_base)
         # сохранение и открытие файлов в формате программы
         self.button4.clicked.connect(self.save_base)
         self.button5.clicked.connect(self.load_base)
-
-        """
-        
-        
-        # смена канала для конструкции
-        self.comboBox_1.activated.connect(lambda: self.change_canal(0))
-        self.comboBox_2.activated.connect(lambda: self.change_canal(1))
-        self.comboBox_3.activated.connect(lambda: self.change_canal(2))
-        self.comboBox_4.activated.connect(lambda: self.change_canal(3))
-        # ввод поправки на сдвиг графика
-        self.spinBox_1.valueChanged.connect(self.change_spin)
-        self.spinBox_2.valueChanged.connect(self.change_spin)
-        self.spinBox_3.valueChanged.connect(self.change_spin)
-        self.spinBox_4.valueChanged.connect(self.change_spin)
-        self.doubleSpinBox_1.valueChanged.connect(self.change_spin)
-        self.doubleSpinBox_2.valueChanged.connect(self.change_spin)
-        self.doubleSpinBox_3.valueChanged.connect(self.change_spin)
-        self.doubleSpinBox_4.valueChanged.connect(self.change_spin)
-        # ввод масштабного коэффициента
-        self.spinBox_5.valueChanged.connect(self.change_spin)
-        self.spinBox_6.valueChanged.connect(self.change_spin)
-        self.spinBox_7.valueChanged.connect(self.change_spin)
-        self.spinBox_8.valueChanged.connect(self.change_spin)
-        # отображение конструкции при смене вкладки
-        
-        # сохранение графика в файл
-        self.button6.clicked.connect(self.export_file)
-        # сохранение и открытие файлов в формате программы
-        self.button4.clicked.connect(self.save_db)
-        self.button5.clicked.connect(self.load_db)
-        
-"""
         self.table.blockSignals(False)
 
     def showdialog(self):
         """отображение диалога открытия файла и загрузка данных из таблицы Excel"""
         fname = QFileDialog.getOpenFileName(self, 'Open file', '', '*.xlsx')[0]
         self.setWindowTitle("Обработка данных датчиков - " + os.path.basename(fname))
-        self.word_file = os.path.splitext(fname)[0]
+        constr.word_file = os.path.splitext(fname)[0]
         if fname != '':
             constr.load_excel(fname)
             # перерисовка всего окна
@@ -233,7 +200,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         """отображение диалога открытия файла и загрузка данных из исходного файла потоков"""
         fname = QFileDialog.getOpenFileName(self, 'Open file', '', '*.db')[0]
         self.setWindowTitle("Обработка данных датчиков - " + os.path.basename(fname))
-        self.word_file = os.path.splitext(fname)[0]
+        constr.word_file = os.path.splitext(fname)[0]
         if fname != '':
             series = 1
             text, ok = QInputDialog.getText(self, 'Выбор серии',
@@ -636,6 +603,187 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         else:
             QMessageBox.about(self, 'Загрузка файла', 'Не удалось считать файл')
 
+    def plot_file(self, rez: list, legend: list, index: int):
+        """Сохранение графика потоков в файле"""
+        if len(rez)>0:
+            #загрузка отметок времени
+            x = np.array(constr.date_time_move[constr.left_border: constr.right_border])
+            #настройка отображения графиков
+            plt.figure(figsize=(8, 6))
+            plt.xlabel('Время проведения измерений')
+            if len(rez) > 2:
+                plt.ylabel('Температура, °С, тепловой поток Вт/м²')
+                filename = 'grafic_potoc' + str(index + 1) + '.jpg'
+            else:
+                plt.ylabel('Сопротивление теплопередаче, м²°С/Вт')
+                filename = 'grafic_ro' + str(index+1) + '.jpg'
+            plt.grid(True)
+            #настройка горизонтальной оси
+            plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%d.%m.%y %H:%M'))
+            plt.xticks(rotation=45)
+            plt.tick_params(axis='x', which='major', labelsize=8)
+            plt.subplots_adjust(left=0.1, bottom=0.165, right=0.97, top=0.995, wspace=0.2, hspace=0.2)
+
+            #загрузка данных датчиков
+            if len(rez) > 2:
+                colors = ['purple', 'green', 'red', 'blue']
+            else:
+                colors = ['maroon', 'blue']
+
+            for i, y in enumerate(rez):
+                plt.plot(x, y, color=colors[i], linewidth=2.0, label=legend[i])
+
+            plt.legend()
+            plt.savefig(filename, dpi=300)
+        return filename
+
+    def export_base(self):
+        """Вывод результата в вордовский файл"""
+        """Экспорт графиков в формате word"""
+        doc = docx.Document()
+        num_ris = 1
+        file_ris = []
+        # Генерация рисунков и вставка в вордовский файл
+        for i, can in enumerate(constr.canals):
+            # График с изменениями значений каналов
+            name = self.plot_file(can.canal, can.canal_name, i)
+            paragraph = doc.add_picture(name, width=docx.shared.Cm(13))
+            last_paragraph = doc.paragraphs[-1]
+            last_paragraph.alignment = 1
+            paragraph.alignment = 1
+            if can.name == '':
+                buf_text = 'Рис. ' + str(num_ris) + '. Результаты измерений ограждающей конструкции №' + str(i+1)
+            else:
+                buf_text = 'Рис. ' + str(num_ris) + '. Результаты измерений ограждающей конструкции №' + str(i+1) % \
+                           + ' (' + can.name + ')'
+            paragraph = doc.add_paragraph(buf_text)
+            paragraph.alignment = 1
+            num_ris += 1
+            file_ris.append(name)
+
+            # График с сопротивлениями тепловпередаче
+            name = self.plot_file(can.ro, ['Ro1', 'Ro2'], i)
+            paragraph = doc.add_picture(name, width=docx.shared.Cm(13))
+            last_paragraph = doc.paragraphs[-1]
+            last_paragraph.alignment = 1
+            paragraph.alignment = 1
+            if can.name == '':
+                buf_text = 'Рис. ' + str(num_ris) + '. Измеренное сопротивление теплопередаче конструкции №' + str(i+1)
+            else:
+                buf_text = 'Рис. ' + str(num_ris) + '. Измеренное сопротивление теплопередаче конструкции №' %\
+                           + str(i+1) + ' (' + can.name + ')'
+            paragraph = doc.add_paragraph(buf_text)
+            paragraph.alignment = 1
+            file_ris.append(name)
+            num_ris += 1
+
+        # Заголовок таблицы
+        paragraph = doc.add_paragraph('')
+        paragraph = doc.add_paragraph('Таблица 1. Измеренные параметры ОКЗ')
+        paragraph.alignment = 1
+
+        # Вставка таблицы с средними значениями
+        table_rows = 4
+        table_cols = 5
+        table = doc.add_table(rows=table_rows, cols=table_cols)
+        table.style = 'Table Grid'
+        table.alignment = 1
+        cell = table.cell(0, 0)
+        cell.text = 'Наименование и расположение исследуемых конструкций'
+        cell.paragraphs[0].alignment = 1
+        cell = table.cell(0, 1)
+        cell.text = 'Средняя температура внутреннего воздуха, °С'
+        cell.paragraphs[0].alignment = 1
+        cell = table.cell(0, 2)
+        cell.text = 'Средняя температура наружного воздуха, °С'
+        cell.paragraphs[0].alignment = 1
+        cell = table.cell(0, 3)
+        cell.text = 'Средняя температура внутренней поверхности, °С'
+        cell.paragraphs[0].alignment = 1
+        cell = table.cell(0, 4)
+        cell.text = 'Средний тепловой поток, Вт/м2'
+        cell.paragraphs[0].alignment = 1
+        table_rows = 3
+        for row, con in enumerate(constr.canals):
+            for col in range(table_cols):
+                # получаем ячейку таблицы
+                cell = table.cell(row+1, col)
+                # записываем в ячейку данные
+                if col == 0:
+                    if con.name == '':
+                        buf_text = 'Конструкция №' + str(row + 1)
+                    else:
+                        buf_text = 'Конструкция №' + str(row + 1) + ' (' + con.name + ')'
+                    cell.text = buf_text
+                if col == 1:
+                    buf = '{0:.3f}'.format(con.canal_value[2])
+                    cell.text = buf
+                if col == 2:
+                    buf = '{0:.3f}'.format(con.canal_value[3])
+                    cell.text = buf
+                if col == 3:
+                    buf = '{0:.3f}'.format(con.canal_value[1])
+                    cell.text = buf
+                if col == 4:
+                    buf = '{0:.3f}'.format(con.canal_value[0])
+                    cell.text = buf
+                cell.paragraphs[0].alignment = 1
+
+        # Вставка заголовка таблицы
+        paragraph = doc.add_paragraph('')
+        paragraph = doc.add_paragraph('Таблица 2. Усредненные величины сопротивлений теплопередаче ОКЗ, м2·°С/Вт')
+        paragraph.alignment = 1
+        # Вставка таблицы с сопротивлением теплопередаче
+        table_rows = 4
+        table_cols = 4
+        table = doc.add_table(rows=table_rows, cols=table_cols)
+        table.style = 'Table Grid'
+        table.alignment = 1
+        cell = table.cell(0, 0)
+        cell.text = 'Наименование и расположение исследуемых конструкций'
+        cell.paragraphs[0].alignment = 1
+        cell = table.cell(0, 1)
+        cell.text = 'Нормативное значение'
+        cell.paragraphs[0].alignment = 1
+        cell = table.cell(0, 2)
+        cell.text = 'Проектное значение'
+        cell.paragraphs[0].alignment = 1
+        cell = table.cell(0, 3)
+        cell.text = 'Измеренное значение'
+        cell.paragraphs[0].alignment = 1
+        table_rows = 3
+        for row, con in enumerate(constr.canals):
+            for col in range(table_cols):
+                # получаем ячейку таблицы
+                cell = table.cell(row+1, col)
+                # записываем в ячейку данные
+                if col == 0:
+                    if con.name == '':
+                        buf_text = 'Конструкция №' + str(row + 1)
+                    else:
+                        buf_text = 'Конструкция №' + str(row + 1) + ' (' + con.name + ')'
+                    cell.text = buf_text
+
+                if col == 3:
+                    buf = '{0:.3f}'.format(con.ro1)
+                    buf = buf + '±' + '{0:.3f}'.format(con.ro2)
+                    cell.text = buf
+                cell.paragraphs[0].alignment = 1
+
+        # Сохранение сгенерированного doc файла
+        if constr.word_file != '':
+            doc.save(constr.word_file + ' - обработанный.docx')
+        else:
+            constr.word_file = 'export_data.docx'
+            doc.save(constr.word_file)
+
+        # Удаление временных файлов
+        for f in file_ris:
+            try:
+                os.remove(f)
+            except:
+                QMessageBox.about(self, 'Ошибка', 'Невозможно удалить временные файлы')
+        QMessageBox.about(self, 'Экспорт', 'Генерация файла завершена')
 
 class Canvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=5, dpi=100):
