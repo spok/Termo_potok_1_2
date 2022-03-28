@@ -41,6 +41,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.table_calc.setColumnWidth(3, w)
         self.table_calc.setColumnWidth(4, w)
         self.table_calc.setColumnWidth(5, w)
+        self.table_calc.setFixedHeight(170)
         # Добавление элементов управления в таблицу
         for i in range(0, 4):
             self.table_calc.setItem(i, 1, QTableWidgetItem())
@@ -58,9 +59,9 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             elem_spin.valueChanged.connect(self.change_step1)  # изменение шага по времени
             self.table_calc.setCellWidget(i, 2, elem_spin)
             # настройка спинбокса для шага на десятые единицы
-            elem_dspin = QtWidgets.QDoubleSpinBox()
-            elem_dspin.setValue(0.0)
-            elem_dspin.setSingleStep(0.1)
+            elem_dspin = QtWidgets.QDoubleSpinBox(decimals=3)
+            elem_dspin.setValue(0.000)
+            elem_dspin.setSingleStep(0.100)
             elem_dspin.setMinimum(-50)
             elem_dspin.setMaximum(50)
             elem_dspin.valueChanged.connect(self.change_step2)  # изменение шага по времени
@@ -85,6 +86,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         self.table_r.setColumnWidth(0, w)
         self.table_r.setColumnWidth(1, w)
         self.table_r.setColumnWidth(2, w)
+        self.table_r.setFixedHeight(150)
 
         # Устанавливаем заголовки таблиц
         self.table.setHorizontalHeaderLabels(["Дата", "q1", "q2", "q3", "t1", "t2", "t3", "t4", "t5", "t6", "t7"])
@@ -607,7 +609,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
         """Сохранение графика потоков в файле"""
         if len(rez)>0:
             #загрузка отметок времени
-            x = np.array(constr.date_time_move[constr.left_border: constr.right_border])
+            x = np.array(constr.date_time[constr.left_border: constr.right_border])
             #настройка отображения графиков
             plt.figure(figsize=(8, 6))
             plt.xlabel('Время проведения измерений')
@@ -654,7 +656,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             if can.name == '':
                 buf_text = 'Рис. ' + str(num_ris) + '. Результаты измерений ограждающей конструкции №' + str(i+1)
             else:
-                buf_text = 'Рис. ' + str(num_ris) + '. Результаты измерений ограждающей конструкции №' + str(i+1) % \
+                buf_text = 'Рис. ' + str(num_ris) + '. Результаты измерений ограждающей конструкции №' + str(i+1) \
                            + ' (' + can.name + ')'
             paragraph = doc.add_paragraph(buf_text)
             paragraph.alignment = 1
@@ -670,7 +672,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
             if can.name == '':
                 buf_text = 'Рис. ' + str(num_ris) + '. Измеренное сопротивление теплопередаче конструкции №' + str(i+1)
             else:
-                buf_text = 'Рис. ' + str(num_ris) + '. Измеренное сопротивление теплопередаче конструкции №' %\
+                buf_text = 'Рис. ' + str(num_ris) + '. Измеренное сопротивление теплопередаче конструкции №' \
                            + str(i+1) + ' (' + can.name + ')'
             paragraph = doc.add_paragraph(buf_text)
             paragraph.alignment = 1
@@ -766,7 +768,7 @@ class MyWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, main_window.Ui_MainWind
 
                 if col == 3:
                     buf = '{0:.3f}'.format(con.ro1)
-                    buf = buf + '±' + '{0:.3f}'.format(con.ro2)
+                    buf = buf + '±' + '{0:.3f}'.format(con.dr)
                     cell.text = buf
                 cell.paragraphs[0].alignment = 1
 
